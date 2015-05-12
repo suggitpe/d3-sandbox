@@ -1,24 +1,8 @@
 <!DOCTYPE html>
 <meta charset="utf-8"/>
-<style>
-    body {
-        font: 12px Arial;
-    }
-
-    path {
-        stroke: steelblue;
-        stroke-width: 2;
-        fill: none;
-    }
-
-    .axis path,
-    .axis line {
-        fill: none;
-        stroke: grey;
-        stroke-width: 1;
-        shape-rendering: crispEdges;
-    }
-</style>
+<head>
+    <link rel="stylesheet" href="css/simple-bar-graph.css" type="text/css"/>
+</head>
 <body>
 <script type="text/javascript" src="js/d3-3.5.5.js"></script>
 
@@ -32,39 +16,62 @@
     // define scales for the graph ... we add the domain in the data retrieve
     var x = d3.time.scale().range([0, width]);
     var y = d3.scale.linear().range([height, 0]);
-
-    var xAxis = d3.svg.axis().scale(x).orient("bottom").ticks(5);
-    var yAxis = d3.svg.axis().scale(y).orient("left").ticks(5);
-
-    var valueLine = d3.svg.line()
-            .interpolate("basis-open") // smooth the line
-            .x(function (d) {
-                return x(d.date);
-            }).y(function (d) {
-                return y(d.close);
-            });
-
     var svg = d3.select("body").append("svg")
             .attr("width", width + margin.left + margin.right)
             .attr("height", height + margin.top + margin.bottom)
             .append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-    function createXAxisWithLabel() {
+    function createXAxis() {
+        return d3.svg.axis().scale(x).orient("bottom").ticks(5)
+    }
+
+    function createYAxis() {
+        return d3.svg.axis().scale(y).orient("left").ticks(5)
+    }
+
+    function createFillAreaFrom(yLocation) {
+        return d3.svg.area()
+                .x(function (d) {
+                    return x(d.date);
+                })
+                .y0(yLocation)
+                .y1(function (d) {
+                    return y(d.close);
+                })
+    }
+
+    function createLowerFillArea() {
+        return createFillAreaFrom(height);
+    }
+
+    function createUpperFillArea() {
+        return createFillAreaFrom(0);
+    }
+
+    var valueLine = d3.svg.line()
+            //.interpolate("basis") // smooth the line
+            .x(function (d) {
+                return x(d.date);
+            }).y(function (d) {
+                return y(d.close);
+            });
+
+    function drawXAxisWithLabel() {
         svg.append("g")
                 .attr("class", "x axis")
                 .attr("transform", "translate(0, " + height + ")")
-                .call(xAxis);
+                .call(createXAxis());
         svg.append("text")
                 .attr("transform", "translate(" + (width / 2) + "," + (height + margin.bottom) + ")")
                 .style("text-anchor", "middle")
                 .text("Date");
     }
 
-    function createYAxisWithLabel() {
+    function drawYAxisWithLabel() {
         svg.append("g")
                 .attr("class", "y axis")
-                .call(yAxis);
+                .call(createYAxis());
         svg.append("text")
                 .attr("transform", "rotate(-90)")
                 .attr("x", 0 - (height / 2))
@@ -76,6 +83,7 @@
 
     function createPathLineWith(data) {
         svg.append("path")
+                .style("stroke-dasharray", ("10,3"))
                 .attr("d", valueLine(data));
     }
 
@@ -87,6 +95,31 @@
                 .style("font-size", "16px")
                 .style("text-decoration", "underline")
                 .text("Close Values by Date");
+    }
+
+    function createFillAreaAboveLineWith(data){
+        svg.append("path")
+                .datum(data)
+                .attr("class", "upperArea")
+                .attr("d", createUpperFillArea());
+    }
+
+    function createFillAreaUnderLineWith(data) {
+        svg.append("path")
+                .datum(data)
+                .attr("class", "area")
+                .attr("d", createLowerFillArea());
+    }
+
+    function createGridLines() {
+        svg.append("g")
+                .attr("class", "grid")
+                .attr("transform", "translate(0," + height + ")")
+                .call(createXAxis().tickSize(-height, 0, 0).tickFormat(""));
+
+        svg.append("g")
+                .attr("class", "grid")
+                .call(createYAxis().tickSize(-width, 0, 0).tickFormat(""));
     }
 
     d3.tsv("data/simple-bar-graph-data.tsv", function (error, data) {
@@ -104,10 +137,14 @@
             return d.close;
         })]);
 
-        createPathLineWith(data);
-        createXAxisWithLabel();
-        createYAxisWithLabel();
         createChartTitle();
+        createFillAreaAboveLineWith(data);
+        createGridLines();
+        createFillAreaUnderLineWith(data);
+        drawXAxisWithLabel();
+        drawYAxisWithLabel();
+        createPathLineWith(data);
+
     });
 
 
